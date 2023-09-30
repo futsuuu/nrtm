@@ -1,8 +1,8 @@
 use std::env;
 
 use clap::{Parser, Subcommand};
-use reqwest::Client;
 use indicatif::{ProgressBar, ProgressStyle};
+use reqwest::Client;
 use tokio::{fs::File, io::AsyncWriteExt};
 use tokio_stream::StreamExt;
 
@@ -24,12 +24,15 @@ enum Commands {
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    let release_name = format!("nvim-{}", match env::consts::OS {
-        "linux" => "linux64.tar.gz",
-        "macos" => "macos.tar.gz",
-        "windows" => "win64.zip",
-        _ => anyhow::bail!("Unsupported OS"),
-    });
+    let release_name = format!(
+        "nvim-{}",
+        match env::consts::OS {
+            "linux" => "linux64.tar.gz",
+            "macos" => "macos.tar.gz",
+            "windows" => "win64.zip",
+            _ => anyhow::bail!("Unsupported OS"),
+        }
+    );
 
     match &args.command {
         Commands::Get { version } => {
