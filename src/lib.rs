@@ -4,15 +4,16 @@ use std::{env, fs, path::PathBuf};
 
 use once_cell::sync::Lazy;
 
-pub static BASE_DIR: Lazy<PathBuf> = Lazy::new(|| match env::var("NRTM_DIR") {
-    Ok(d) => PathBuf::from(d),
-    Err(_) => home::home_dir()
-        .expect("Failed to get home directory.")
-        .join(".nrtm"),
+pub static BIN_DIR: Lazy<PathBuf> = Lazy::new(|| {
+    env::current_exe()
+        .expect("Failed to get the path for the current exe")
+        .parent()
+        .unwrap()
+        .to_path_buf()
 });
-
+pub static BASE_DIR: Lazy<PathBuf> =
+    Lazy::new(|| BIN_DIR.parent().unwrap().to_path_buf());
 pub static APP_DIR: Lazy<PathBuf> = Lazy::new(|| init_dir("app"));
-pub static BIN_DIR: Lazy<PathBuf> = Lazy::new(|| init_dir("bin"));
 pub static CACHE_DIR: Lazy<PathBuf> = Lazy::new(|| init_dir("cache"));
 pub static STATE_DIR: Lazy<PathBuf> = Lazy::new(|| init_dir("state"));
 
