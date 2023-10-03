@@ -12,13 +12,13 @@ import subprocess
 import sys
 
 
-ARCHIVE_FILE = "out"
+ARCHIVE_NAME = "out"
 DIST_FLAG = "--dist"
 
 
 def make_archive(directory: str):
     shutil.make_archive(
-        ARCHIVE_FILE,
+        ARCHIVE_NAME,
         "zip" if platform.system() == "Windows" else "gztar",
         root_dir=".",
         base_dir=directory,
@@ -38,7 +38,7 @@ def main():
         encoding="utf-8",
     )
 
-    out_dir = "nrtm" if dist else "out"
+    out_dir = "nrtm" if dist else ARCHIVE_NAME
     bin_dir = os.path.join(out_dir, "bin")
 
     os.makedirs(bin_dir, exist_ok=True)
@@ -53,7 +53,7 @@ def main():
 
     if dist:
         make_archive(out_dir)
-        os.rmdir(out_dir)
+        shutil.rmtree(out_dir)
 
 
 if __name__ == "__main__":
