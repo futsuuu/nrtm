@@ -808,6 +808,7 @@ dependencies = [
  "futures-util",
  "home",
  "indicatif",
+ "once_cell",
  "reqwest",
  "tar",
  "tokio",

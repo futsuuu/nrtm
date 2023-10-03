@@ -1,16 +1,14 @@
 use std::{
-    env,
+    env::{self, consts::EXE_SUFFIX},
     path::{Path, PathBuf},
 };
 
-use anyhow::Context as _;
-use clap::{Parser, Subcommand};
-use futures_util::{future, StreamExt};
+use clap::Parser as _;
+use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
-use tokio::{
-    fs::{create_dir_all, File},
-    io::AsyncWriteExt,
-};
+use tokio::{fs::File, io::AsyncWriteExt};
+
+use nrtm::{shim, APP_DIR, CACHE_DIR};
 
 #[cfg(target_os = "windows")]
 const ARCHIVE_EXT: &str = "zip";
@@ -18,44 +16,40 @@ const ARCHIVE_EXT: &str = "zip";
 const ARCHIVE_EXT: &str = "tar.gz";
 
 /// A runtime manager for Neovim
-#[derive(Parser)]
+#[derive(clap::Parser)]
 #[command(author, version, about)]
-pub struct Args {
+struct Args {
     #[command(subcommand)]
     command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(clap::Subcommand)]
 enum Commands {
     /// Download a release
     Get { version: String },
+    /// Set version for use
+    Use { version: String },
+    /// Manage NVIM_APPNAME
+    App(AppArgs),
+}
+
+#[derive(clap::Args)]
+struct AppArgs {
+    #[command(subcommand)]
+    command: AppCommands,
+}
+
+#[derive(clap::Subcommand)]
+enum AppCommands {
+    /// Set NVIM_APPNAME
+    Use { name: String },
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    shim::install()?;
+
     let args = Args::parse();
-
-    let base_dir = match env::var("NRTM_DIR") {
-        Ok(d) => PathBuf::from(d),
-        Err(_) => home::home_dir()
-            .context("Failed to get home directory.")?
-            .join(".nrtm"),
-    };
-
-    // Initialize directory structure
-    let mut dirs =
-        future::join_all(["app", "bin", "cache"].map(|name| base_dir.join(name)).map(
-            |path| async move {
-                create_dir_all(&path).await?;
-                anyhow::Ok(path)
-            },
-        ))
-        .await
-        .into_iter();
-
-    let app_dir = dirs.next().unwrap()?;
-    let _bin_dir = dirs.next().unwrap()?;
-    let cache_dir = dirs.next().unwrap()?;
 
     let release_name = format!(
         "nvim-{}.{ARCHIVE_EXT}",
@@ -69,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
 
     match &args.command {
         Commands::Get { version } => {
-            let download_target = cache_dir.join(format!("{version}.{ARCHIVE_EXT}"));
+            let download_target = CACHE_DIR.join(format!("{version}.{ARCHIVE_EXT}"));
             download_file(
                 &reqwest::Client::new(),
                 &format!("https://github.com/neovim/neovim/releases/download/{version}/{release_name}"),
@@ -77,9 +71,38 @@ async fn main() -> anyhow::Result<()> {
             ).await?;
             extract_archive(
                 std::fs::File::open(download_target)?,
-                app_dir.join(version),
+                APP_DIR.join(version),
             )?;
         }
+        Commands::Use { version } => {
+            let appname = if let Ok(state) = shim::State::new() {
+                state.appname
+            } else {
+                String::new()
+            };
+            shim::State {
+                exe_path: APP_DIR
+                    .join(format!("{version}/bin/nvim{EXE_SUFFIX}"))
+                    .display()
+                    .to_string(),
+                appname,
+            }
+            .write()?;
+        }
+        Commands::App(args) => match &args.command {
+            AppCommands::Use { name } => {
+                let exe_path = if let Ok(state) = shim::State::new() {
+                    state.exe_path
+                } else {
+                    String::new()
+                };
+                shim::State {
+                    appname: name.to_string(),
+                    exe_path,
+                }
+                .write()?;
+            }
+        },
     }
 
     Ok(())
