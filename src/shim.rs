@@ -1,18 +1,6 @@
-use std::{env::consts::EXE_SUFFIX, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
-use crate::{BIN_DIR, STATE_DIR};
-
-pub fn install() -> anyhow::Result<()> {
-    let from = BIN_DIR.join(format!("shim{EXE_SUFFIX}"));
-    let to = BIN_DIR.join(format!("nvim{EXE_SUFFIX}"));
-
-    if from.exists() {
-        // Rename `shim` to `nvim`
-        fs::rename(from, to)?;
-    }
-
-    Ok(())
-}
+use crate::STATE_DIR;
 
 pub struct State {
     pub exe_path: String,

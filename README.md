@@ -19,7 +19,7 @@ git clone https://github.com/fusuuu/nrtm && cd nrtm
 cargo build --release
 mkdir -p out/bin
 cp ./target/release/nrtm ./out/bin/
-cp ./target/release/shim ./out/bin/
+cp ./target/release/shim ./out/bin/nvim  # Rename `shim` to `nvim`
 ```
 
 </details>
