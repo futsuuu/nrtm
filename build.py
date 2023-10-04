@@ -28,12 +28,11 @@ def make_archive(directory: str):
 def main():
     args = sys.argv[1:]
 
-    dist = DIST_FLAG in args
-    if dist:
+    if dist := DIST_FLAG in args:
         args.remove(DIST_FLAG)
 
     result = subprocess.run(
-        ["cargo", "build"] + args + ["--message-format", "json"],
+        ["cargo", "build", "--message-format", "json"] + args,
         stdout=subprocess.PIPE,
         encoding="utf-8",
     )
@@ -48,8 +47,8 @@ def main():
             continue
 
         data = json.loads(line)
-        if "executable" in data and data["executable"]:
-            shutil.copy(data["executable"], bin_dir)
+        if exe := data.get("executable"):
+            shutil.copy(exe, bin_dir)
 
     if dist:
         make_archive(out_dir)
