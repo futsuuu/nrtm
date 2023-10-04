@@ -112,7 +112,7 @@ async fn download_file(
     path: impl AsRef<Path>,
 ) -> anyhow::Result<()> {
     let res = client.get(url).send().await?;
-    let total_size = res.content_length().unwrap() as u64;
+    let total_size = res.content_length().unwrap();
 
     let pb = ProgressBar::new(total_size);
     pb.set_style(ProgressStyle::default_bar()

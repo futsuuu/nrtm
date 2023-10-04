@@ -1,6 +1,6 @@
-use std::{env::consts::EXE_SUFFIX, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
-use crate::{BIN_DIR, STATE_DIR};
+use crate::STATE_DIR;
 
 pub struct State {
     pub exe_path: String,
