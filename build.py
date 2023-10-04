@@ -7,6 +7,7 @@ If you pass the `--dist` flag, `out.zip` or `out.tar.gz` will be created.
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -48,7 +49,10 @@ def main():
 
         data = json.loads(line)
         if exe := data.get("executable"):
-            shutil.copy(exe, bin_dir)
+            basename = os.path.basename(exe)
+            # Rename `shim` to `nvim`, e.g. `shim.exe` -> `nvim.exe`
+            filename = re.sub(r"^shim((\.\w+)+)$", r"nvim\1", basename)
+            shutil.copy(exe, os.path.join(bin_dir, filename))
 
     if dist:
         make_archive(out_dir)

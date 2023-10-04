@@ -47,8 +47,6 @@ enum AppCommands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    shim::install()?;
-
     let args = Args::parse();
 
     let release_name = format!(
