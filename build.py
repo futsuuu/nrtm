@@ -17,13 +17,21 @@ ARCHIVE_NAME = "out"
 DIST_FLAG = "--dist"
 
 
-def make_archive(directory: str):
+def make_archive(directory: str) -> str:
+    archive_format = "zip" if platform.system() == "Windows" else "gztar"
     shutil.make_archive(
         ARCHIVE_NAME,
-        "zip" if platform.system() == "Windows" else "gztar",
+        archive_format,
         root_dir=".",
         base_dir=directory,
     )
+
+    archive_name = ARCHIVE_NAME + (".zip" if archive_format == "zip" else ".tar.gz")
+    print(f"./{directory}/ --> ./{archive_name}  # {get_size(archive_name)} KB")
+
+
+def get_size(path: str) -> int:
+    return round(os.path.getsize(path) / 1024)
 
 
 def main():
@@ -52,7 +60,10 @@ def main():
             basename = os.path.basename(exe)
             # Rename `shim` to `nvim`, e.g. `shim.exe` -> `nvim.exe`
             filename = re.sub(r"^shim((\.\w+)+)$", r"nvim\1", basename)
-            shutil.copy(exe, os.path.join(bin_dir, filename))
+
+            target = os.path.join(bin_dir, filename)
+            shutil.copy(exe, target)
+            print(f"{exe} --> ./{target}  # {get_size(target)} KB")
 
     if dist:
         make_archive(out_dir)
