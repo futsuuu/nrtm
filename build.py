@@ -82,9 +82,13 @@ def main():
 
     result = subprocess.run(args, stdout=subprocess.PIPE, encoding="utf-8")
 
-    out_dir = DIST_NAME if dist else OUT_DIR
-    if build_target:
-        out_dir += f"-{build_target}"
+    if dist:
+        # Top directory name in zip/tar.gz
+        out_dir = DIST_NAME
+    elif build_target:
+        out_dir = f"{OUT_DIR}-{build_target}"
+    else:
+        out_dir = OUT_DIR
     bin_dir = os.path.join(out_dir, "bin")
 
     os.makedirs(bin_dir, exist_ok=True)
