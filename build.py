@@ -62,7 +62,7 @@ def get_size(path: str) -> int:
 
 
 def main():
-    args = sys.argv[1:]
+    args = ["cargo", "build", "--message-format", "json"] + sys.argv[1:]
 
     if dist := DIST_FLAG in args:
         args.remove(DIST_FLAG)
@@ -74,17 +74,13 @@ def main():
         build_target = args[args.index(TARGET_FLAG) + 1]
         subprocess.run(["rustup", "target", "add", build_target])
 
-    # Install cargo-zigbuild if needed
-    build_command = "build"
+    # Static compile for musl target
     if dist and "-musl" in build_target:
         subprocess.run(["python", "-m", "pip", "install", "cargo-zigbuild"])
-        build_command = "zigbuild"
+        args[1] = "zigbuild"
+        args += ["--features", "openssl"]
 
-    result = subprocess.run(
-        ["cargo", build_command, "--message-format", "json"] + args,
-        stdout=subprocess.PIPE,
-        encoding="utf-8",
-    )
+    result = subprocess.run(args, stdout=subprocess.PIPE, encoding="utf-8")
 
     out_dir = DIST_NAME if dist else OUT_DIR
     if build_target:
