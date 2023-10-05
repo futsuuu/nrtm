@@ -53,7 +53,7 @@ def create_dist(base_name: str, base_dir: str):
         base_dir=base_dir,
     )
 
-    dist_name = DIST_NAME + (".zip" if dist_format == "zip" else ".tar.gz")
+    dist_name = base_name + (".zip" if dist_format == "zip" else ".tar.gz")
     print(f"./{base_dir}/ --> ./{dist_name}  # {get_size(dist_name)} KB")
 
 
@@ -98,7 +98,7 @@ def main():
 
         basename = os.path.basename(exe)
         # Rename `shim` to `nvim`, e.g. `shim.exe` -> `nvim.exe`
-        filename = re.sub(r"^shim((\.\w+)+)$", r"nvim\1", basename)
+        filename = re.sub(r"^shim((\.\w+)*)$", r"nvim\1", basename)
 
         target = os.path.join(bin_dir, filename)
         shutil.copy2(exe, target)
