@@ -75,7 +75,7 @@ def main():
         subprocess.run(["rustup", "target", "add", build_target])
 
     # Static compile for musl target
-    if dist and "-musl" in build_target:
+    if "-musl" in build_target:
         subprocess.run(["python", "-m", "pip", "install", "cargo-zigbuild"])
         args[1] = "zigbuild"
         args += ["--features", "openssl"]
