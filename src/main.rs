@@ -8,7 +8,7 @@ use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio::{fs::File, io::AsyncWriteExt};
 
-use nrtm::{shim, APP_DIR, CACHE_DIR};
+use nrtm::{github, shim, APP_DIR, CACHE_DIR};
 
 #[cfg(target_os = "windows")]
 const ARCHIVE_EXT: &str = "zip";
@@ -31,6 +31,8 @@ enum Commands {
     Use { version: String },
     /// Manage NVIM_APPNAME
     App(AppArgs),
+    /// Update cached response data
+    Update,
 }
 
 #[derive(clap::Args)]
@@ -101,6 +103,9 @@ async fn main() -> anyhow::Result<()> {
                 .write()?;
             }
         },
+        Commands::Update => {
+            github::update_request_cache().await?;
+        }
     }
 
     Ok(())

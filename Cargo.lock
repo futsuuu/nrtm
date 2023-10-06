@@ -801,6 +801,8 @@ dependencies = [
  "once_cell",
  "openssl",
  "reqwest",
+ "serde",
+ "serde_json",
  "tar",
  "tokio",
  "zip",
