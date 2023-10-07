@@ -59,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
                         None
                     }
                 })
-                .nth(0);
+                .next();
 
             let Some(asset) = asset else {
                 anyhow::bail!("Failed to get a asset.");
@@ -144,7 +144,7 @@ fn extract_archive(
     archive_type: &github::AssetType,
     target: &PathBuf,
 ) -> anyhow::Result<()> {
-    std::fs::create_dir_all(&target)?;
+    std::fs::create_dir_all(target)?;
 
     fn strip_toplevel(rel_path: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
         let rel_path = rel_path.as_ref();
@@ -155,8 +155,8 @@ fn extract_archive(
 
     let archive = std::fs::File::open(archive)?;
 
-    match archive_type {
-        &github::AssetType::Zip => {
+    match *archive_type {
+        github::AssetType::Zip => {
             let mut archive = zip::ZipArchive::new(archive)?;
 
             for i in 0..archive.len() {
@@ -184,7 +184,7 @@ fn extract_archive(
                 }
             }
         }
-        &github::AssetType::TarGz => {
+        github::AssetType::TarGz => {
             let tar = flate2::read::GzDecoder::new(archive);
             let mut archive = tar::Archive::new(tar);
 

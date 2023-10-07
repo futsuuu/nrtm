@@ -115,7 +115,7 @@ fn get_nvim_version(text: &str) -> anyhow::Result<Version> {
     let raw_version = caps.name("version").map_or("", |m| m.as_str());
 
     let version = if let Some((version_prerelease, build_metadata)) =
-        raw_version.rsplit_once("-")
+        raw_version.rsplit_once('-')
     {
         Version::parse(&format!("{version_prerelease}+{build_metadata}"))?
     } else {
@@ -123,6 +123,14 @@ fn get_nvim_version(text: &str) -> anyhow::Result<Version> {
     };
 
     Ok(version)
+}
+
+#[test]
+fn get_nvim_version_t() {
+    let version = get_nvim_version("NVIM v1.0.0");
+    assert_eq!(version.unwrap(), Version::parse("1.0.0").unwrap());
+    let version = get_nvim_version("foo\n```\nNvim v1.0.0-dev-1234 (bar)\n");
+    assert_eq!(version.unwrap(), Version::parse("1.0.0-dev+1234").unwrap());
 }
 
 #[derive(Deserialize)]
@@ -152,9 +160,9 @@ pub enum AssetType {
 impl std::fmt::Display for AssetType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use AssetType::*;
-        match self {
-            &Zip => write!(f, "zip")?,
-            &TarGz => write!(f, "tar.gz")?,
+        match *self {
+            Zip => write!(f, "zip")?,
+            TarGz => write!(f, "tar.gz")?,
         }
         Ok(())
     }
@@ -173,20 +181,4 @@ fn new_client() -> anyhow::Result<Client> {
         .build()?;
 
     Ok(client)
-}
-
-#[cfg(test)]
-mod tests {
-    use semver::Version;
-
-    use super::*;
-
-    #[test]
-    fn get_nvim_version() {
-        let version = get_nvim_version("NVIM v1.0.0");
-        assert_eq!(version.unwrap(), Version::parse("1.0.0").unwrap());
-
-        let version = get_nvim_version("foo\n```\nNvim v1.0.0-dev-1234 (bar)\n");
-        assert_eq!(version.unwrap(), Version::parse("1.0.0-dev+1234").unwrap());
-    }
 }
