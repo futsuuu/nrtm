@@ -1,3 +1,4 @@
+pub mod github;
 pub mod shim;
 
 use std::{env, fs, path::PathBuf};
