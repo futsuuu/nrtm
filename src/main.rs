@@ -10,11 +10,6 @@ use tokio::{fs::File, io::AsyncWriteExt};
 
 use nrtm::{github, shim, APP_DIR, CACHE_DIR};
 
-#[cfg(target_os = "windows")]
-const ARCHIVE_EXT: &str = "zip";
-#[cfg(not(target_os = "windows"))]
-const ARCHIVE_EXT: &str = "tar.gz";
-
 /// A runtime manager for Neovim
 #[derive(clap::Parser)]
 #[command(author, version, about)]
@@ -70,17 +65,15 @@ async fn main() -> anyhow::Result<()> {
                 anyhow::bail!("Failed to get a asset.");
             };
 
-            let download_target = CACHE_DIR.join(format!("{version}.{ARCHIVE_EXT}"));
+            let asset_type = asset.get_type().unwrap();
+            let download_target = CACHE_DIR.join(format!("{version}.{asset_type}"));
             download_file(
                 &reqwest::Client::new(),
                 &asset.browser_download_url,
                 &download_target,
             )
             .await?;
-            extract_archive(
-                std::fs::File::open(download_target)?,
-                APP_DIR.join(version),
-            )?;
+            extract_archive(&download_target, &asset_type, &APP_DIR.join(version))?;
         }
         Commands::Use { version } => {
             let appname = if let Ok(state) = shim::State::new() {
@@ -146,7 +139,11 @@ async fn download_file(
     Ok(())
 }
 
-fn extract_archive(archive: std::fs::File, target: PathBuf) -> anyhow::Result<()> {
+fn extract_archive(
+    archive: &PathBuf,
+    archive_type: &github::AssetType,
+    target: &PathBuf,
+) -> anyhow::Result<()> {
     std::fs::create_dir_all(&target)?;
 
     fn strip_toplevel(rel_path: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
@@ -156,53 +153,52 @@ fn extract_archive(archive: std::fs::File, target: PathBuf) -> anyhow::Result<()
         Ok(path)
     }
 
-    if ARCHIVE_EXT == "zip" {
-        let mut archive = zip::ZipArchive::new(archive)?;
+    let archive = std::fs::File::open(archive)?;
 
-        for i in 0..archive.len() {
-            let mut file = archive.by_index(i)?;
-            let rel_path = strip_toplevel(file.mangled_name())?;
-            let path = target.join(rel_path);
+    match archive_type {
+        &github::AssetType::Zip => {
+            let mut archive = zip::ZipArchive::new(archive)?;
 
-            if file.is_dir() {
-                std::fs::create_dir_all(&path)?;
-            } else {
-                std::fs::create_dir_all(path.parent().unwrap())?;
-                let mut outfile = std::fs::File::create(&path)?;
-                std::io::copy(&mut file, &mut outfile)?;
+            for i in 0..archive.len() {
+                let mut file = archive.by_index(i)?;
+                let rel_path = strip_toplevel(file.mangled_name())?;
+                let path = target.join(rel_path);
 
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    if let Some(mode) = file.unix_mode() {
-                        std::fs::set_permissions(
-                            &path,
-                            std::fs::Permissions::from_mode(mode),
-                        )?;
+                if file.is_dir() {
+                    std::fs::create_dir_all(&path)?;
+                } else {
+                    std::fs::create_dir_all(path.parent().unwrap())?;
+                    let mut outfile = std::fs::File::create(&path)?;
+                    std::io::copy(&mut file, &mut outfile)?;
+
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        if let Some(mode) = file.unix_mode() {
+                            std::fs::set_permissions(
+                                &path,
+                                std::fs::Permissions::from_mode(mode),
+                            )?;
+                        }
                     }
                 }
             }
         }
+        &github::AssetType::TarGz => {
+            let tar = flate2::read::GzDecoder::new(archive);
+            let mut archive = tar::Archive::new(tar);
 
-        return Ok(());
-    }
+            for file in archive.entries()? {
+                let Ok(mut file) = file else {
+                    continue;
+                };
 
-    if ARCHIVE_EXT == "tar.gz" {
-        let tar = flate2::read::GzDecoder::new(archive);
-        let mut archive = tar::Archive::new(tar);
+                let rel_path = strip_toplevel(file.path()?)?;
+                let path = target.join(&rel_path);
 
-        for file in archive.entries()? {
-            let Ok(mut file) = file else {
-                continue;
-            };
-
-            let rel_path = strip_toplevel(file.path()?)?;
-            let path = target.join(&rel_path);
-
-            file.unpack(&path)?;
+                file.unpack(&path)?;
+            }
         }
-
-        return Ok(());
     }
 
     Ok(())

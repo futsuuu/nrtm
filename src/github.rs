@@ -64,15 +64,6 @@ impl Release {
     }
 
     pub fn filter_assets(&self) -> Option<&Asset> {
-        let mime_types = [
-            // zip
-            "application/x-zip-compressed",
-            "application/zip",
-            // tar.gz
-            "application/x-gtar",
-            "application/x-gzip",
-            "application/gzip",
-        ];
         let invalid_os = [
             #[cfg(not(target_os = "linux"))]
             "linux",
@@ -89,7 +80,7 @@ impl Release {
         ];
 
         'asset: for asset in &self.assets {
-            if !mime_types.contains(&asset.content_type.as_str()) {
+            if asset.get_type().is_none() {
                 continue;
             }
             for os_name in &invalid_os {
@@ -139,6 +130,34 @@ pub struct Asset {
     pub name: String,
     pub content_type: String,
     pub browser_download_url: String,
+}
+
+impl Asset {
+    pub fn get_type(&self) -> Option<AssetType> {
+        match self.content_type.as_str() {
+            "application/x-zip-compressed" | "application/zip" => Some(AssetType::Zip),
+            "application/x-gtar" | "application/x-gzip" | "application/gzip" => {
+                Some(AssetType::TarGz)
+            }
+            _ => None,
+        }
+    }
+}
+
+pub enum AssetType {
+    Zip,
+    TarGz,
+}
+
+impl std::fmt::Display for AssetType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use AssetType::*;
+        match self {
+            &Zip => write!(f, "zip")?,
+            &TarGz => write!(f, "tar.gz")?,
+        }
+        Ok(())
+    }
 }
 
 fn new_client() -> anyhow::Result<Client> {
