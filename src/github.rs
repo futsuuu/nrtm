@@ -15,9 +15,9 @@ use crate::CACHE_DIR;
 static API_VERSION: &str = "2022-11-28";
 static USER_AGENT: &str =
     concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
-static CACHE_FILE: Lazy<PathBuf> = Lazy::new(|| CACHE_DIR.join("request_releases.json"));
+static CACHE_FILE: Lazy<PathBuf> = Lazy::new(|| CACHE_DIR.join("releases.json"));
 
-pub async fn update_request_cache() -> anyhow::Result<String> {
+pub async fn cache_response() -> anyhow::Result<String> {
     let request_url = "https://api.github.com/repos/neovim/neovim/releases";
 
     let json = new_client()?
@@ -37,7 +37,7 @@ pub async fn get_releases() -> anyhow::Result<Vec<Release>> {
     let json = if CACHE_FILE.exists() {
         fs::read_to_string(&*CACHE_FILE)?
     } else {
-        update_request_cache().await?
+        cache_response().await?
     };
 
     let releases = serde_json::from_str(&json)?;
@@ -52,6 +52,7 @@ pub struct Release {
     pub tag_name: String,
     pub body: String,
     pub assets: Vec<Asset>,
+    pub html_url: String,
 }
 
 impl Release {
@@ -60,6 +61,52 @@ impl Release {
             Ok(v) => Ok(v),
             Err(_) => get_nvim_version(&self.name),
         }
+    }
+
+    pub fn filter_assets(&self) -> Option<&Asset> {
+        let mime_types = [
+            // zip
+            "application/x-zip-compressed",
+            "application/zip",
+            // tar.gz
+            "application/x-gtar",
+            "application/x-gzip",
+            "application/gzip",
+        ];
+        let invalid_os = [
+            #[cfg(not(target_os = "linux"))]
+            "linux",
+            #[cfg(not(target_os = "macos"))]
+            "macos",
+            #[cfg(not(target_os = "windows"))]
+            "win",
+        ];
+        let invalid_pointer_width = [
+            #[cfg(not(target_pointer_width = "32"))]
+            "32",
+            #[cfg(not(target_pointer_width = "64"))]
+            "64",
+        ];
+
+        'asset: for asset in &self.assets {
+            if !mime_types.contains(&asset.content_type.as_str()) {
+                continue;
+            }
+            for os_name in &invalid_os {
+                if asset.name.contains(os_name) {
+                    continue 'asset;
+                }
+            }
+            for pointer_width in &invalid_pointer_width {
+                if asset.name.contains(pointer_width) {
+                    continue 'asset;
+                }
+            }
+
+            return Some(asset);
+        }
+
+        None
     }
 }
 

@@ -1,5 +1,5 @@
 use std::{
-    env::{self, consts::EXE_SUFFIX},
+    env::consts::EXE_SUFFIX,
     path::{Path, PathBuf},
 };
 
@@ -51,24 +51,32 @@ enum AppCommands {
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    let release_name = format!(
-        "nvim-{}.{ARCHIVE_EXT}",
-        match env::consts::OS {
-            "linux" => "linux64",
-            "macos" => "macos",
-            "windows" => "win64",
-            _ => anyhow::bail!("Unsupported OS"),
-        }
-    );
-
     match &args.command {
         Commands::Get { version } => {
+            let releases = github::get_releases().await?;
+            let asset = releases
+                .iter()
+                .filter_map(|release| {
+                    if version == &release.tag_name {
+                        println!("Release found: {}", release.html_url);
+                        release.filter_assets()
+                    } else {
+                        None
+                    }
+                })
+                .nth(0);
+
+            let Some(asset) = asset else {
+                anyhow::bail!("Failed to get a asset.");
+            };
+
             let download_target = CACHE_DIR.join(format!("{version}.{ARCHIVE_EXT}"));
             download_file(
                 &reqwest::Client::new(),
-                &format!("https://github.com/neovim/neovim/releases/download/{version}/{release_name}"),
+                &asset.browser_download_url,
                 &download_target,
-            ).await?;
+            )
+            .await?;
             extract_archive(
                 std::fs::File::open(download_target)?,
                 APP_DIR.join(version),
@@ -104,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
             }
         },
         Commands::Update => {
-            github::update_request_cache().await?;
+            github::cache_response().await?;
         }
     }
 
