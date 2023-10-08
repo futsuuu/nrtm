@@ -76,32 +76,22 @@ async fn main() -> anyhow::Result<()> {
             extract_archive(&download_target, &asset_type, &APP_DIR.join(version))?;
         }
         Commands::Use { version } => {
-            let appname = if let Ok(state) = shim::State::new() {
-                state.appname
+            let mut state = shim::State::read().unwrap_or_default();
+            state.exe_path = if version == "system" {
+                shim::State::default().exe_path
             } else {
-                String::new()
-            };
-            shim::State {
-                exe_path: APP_DIR
+                APP_DIR
                     .join(format!("{version}/bin/nvim{EXE_SUFFIX}"))
                     .display()
-                    .to_string(),
-                appname,
-            }
-            .write()?;
+                    .to_string()
+            };
+            state.write()?;
         }
         Commands::App(args) => match &args.command {
             AppCommands::Use { name } => {
-                let exe_path = if let Ok(state) = shim::State::new() {
-                    state.exe_path
-                } else {
-                    String::new()
-                };
-                shim::State {
-                    appname: name.to_string(),
-                    exe_path,
-                }
-                .write()?;
+                let mut state = shim::State::read().unwrap_or_default();
+                state.appname = name.to_string();
+                state.write()?;
             }
         },
         Commands::Update => {
