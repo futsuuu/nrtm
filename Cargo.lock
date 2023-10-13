@@ -836,6 +836,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nrtm-installer"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "zip",
+]
+
+[[package]]
 name = "num_cpus"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

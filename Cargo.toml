@@ -6,7 +6,13 @@ edition = "2021"
 resolver = "2"
 members = [
   "nrtm",
+  "nrtm-installer",
 ]
+
+[workspace.dependencies]
+anyhow = "1.0.75"
+clap = { version = "4.4.6", features = ["derive"] }
+zip = "0.6.6"
 
 [profile.dev]
 lto = "off"
