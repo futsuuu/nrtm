@@ -41,11 +41,11 @@ jobs:
           cargo clippy
 
       - name: Build
-        run: python ./build.py
+        run: python ./build.py --dist
 
       - name: Build for musl target
         if: matrix.os == 'ubuntu-latest'
-        run: python ./build.py --target x86_64-unknown-linux-musl
+        run: python ./build.py --dist --target x86_64-unknown-linux-musl
 
       - name: Test
         run: cargo test

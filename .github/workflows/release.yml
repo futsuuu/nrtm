@@ -40,13 +40,13 @@ jobs:
           python-version: '3.12'
 
       - name: Create dist
-        run: python ./build.py --dist --target ${{ matrix.target }}
+        run: python ./build.py --release --dist --target ${{ matrix.target }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: dist-${{ matrix.target }}
-          path: './nrtm-${{ matrix.target }}.*'
+          path: './out-${{ matrix.target }}/nrtm-installer-${{ matrix.target }}.*'
 
   release:
     needs: ["build"]
