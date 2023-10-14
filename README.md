@@ -8,31 +8,18 @@ A runtime manager for [Neovim](https://neovim.io/)
 
 Requirements:
 
-- [**Rust**](https://www.rust-lang.org/tools/install/)
+- [Rust](https://www.rust-lang.org/tools/install/)
 - [Python](https://www.python.org/downloads/)
 
-<details>
-<summary>Without Python</summary>
-
 ```shell
+INSTALL_DIR=$HOME/.nrtm
+
 git clone https://github.com/fusuuu/nrtm && cd nrtm
-cargo build --release
-mkdir -p out/bin
-cp ./target/release/nrtm ./out/bin/
-cp ./target/release/shim ./out/bin/nvim  # Rename `shim` to `nvim`
+python build.py --release --dist
+./out/nrtm-installer $INSTALL_DIR
+
+export PATH=PATH:$INSTALL_DIR/bin
 ```
-
-</details>
-
-```shell
-git clone https://github.com/fusuuu/nrtm && cd nrtm
-python build.py --release
-```
-
-After compiling:
-
-- you can move the `./out` directory to anywhere, e.g. `~/.nrtm`
-- add `{out}/bin/` to your `$PATH`
 
 ## License
 

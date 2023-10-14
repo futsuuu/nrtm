@@ -1,0 +1,11 @@
+[package]
+name = "nrtm-installer"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap.workspace = true
+zip.workspace = true
+
+[build-dependencies]
+zip.workspace = true
