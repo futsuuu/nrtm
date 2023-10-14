@@ -104,9 +104,6 @@ def main():
         build_and_get_executables(["cargo", "build", "--package", "nrtm-installer"])
     )
 
-    print(f"Remove {dist_name}")
-    dist_name.unlink()
-
     target = with_build_target(out_dir / installer.name, build_target)
     shutil.copy2(installer, target)
     print(f"Copy {installer} --> {target}  # {get_size(installer)} KB")
