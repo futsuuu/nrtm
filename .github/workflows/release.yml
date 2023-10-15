@@ -46,7 +46,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: dist-${{ matrix.target }}
-          path: './out-${{ matrix.target }}/nrtm-installer-${{ matrix.target }}.*'
+          path: './out-${{ matrix.target }}/nrtm-installer-${{ matrix.target }}**'
 
   release:
     needs: ["build"]
