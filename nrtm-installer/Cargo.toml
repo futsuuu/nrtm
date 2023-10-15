@@ -3,6 +3,10 @@ name = "nrtm-installer"
 version.workspace = true
 edition.workspace = true
 
+[[bin]]
+name = "nrtm-installer"
+path = "main.rs"
+
 [dependencies]
 clap.workspace = true
 zip.workspace = true
