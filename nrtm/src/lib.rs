@@ -14,7 +14,7 @@ pub static BIN_DIR: Lazy<PathBuf> = Lazy::new(|| {
 });
 pub static BASE_DIR: Lazy<PathBuf> =
     Lazy::new(|| BIN_DIR.parent().unwrap().to_path_buf());
-pub static APP_DIR: Lazy<PathBuf> = Lazy::new(|| init_dir("app"));
+pub static NVIM_DIR: Lazy<PathBuf> = Lazy::new(|| init_dir("nvim"));
 pub static CACHE_DIR: Lazy<PathBuf> = Lazy::new(|| init_dir("cache"));
 pub static STATE_DIR: Lazy<PathBuf> = Lazy::new(|| init_dir("state"));
 
