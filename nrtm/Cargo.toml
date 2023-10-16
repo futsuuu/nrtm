@@ -14,7 +14,7 @@ indicatif = "0.17.5"
 zip.workspace = true
 tar = "0.4.40"
 flate2 = "1.0.27"
-serde = { version = "1.0.188", features = ["derive"] }
+serde = { version = "1.0.189", features = ["derive"] }
 serde_json.workspace = true
 semver = { version = "1.0.19", features = ["serde"] }
 regex = "1.9.6"
