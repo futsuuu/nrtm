@@ -9,13 +9,12 @@ A runtime manager for [Neovim](https://neovim.io/)
 Requirements:
 
 - [Rust](https://www.rust-lang.org/tools/install/)
-- [Python](https://www.python.org/downloads/)
 
 ```shell
 INSTALL_DIR=$HOME/.nrtm
 
 git clone https://github.com/fusuuu/nrtm && cd nrtm
-python build.py --release --dist
+cargo xtask build --dist -- --release
 ./out/nrtm-installer $INSTALL_DIR
 
 export PATH=PATH:$INSTALL_DIR/bin

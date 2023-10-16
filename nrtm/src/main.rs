@@ -8,7 +8,7 @@ use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio::{fs::File, io::AsyncWriteExt};
 
-use nrtm::{github, shim, APP_DIR, CACHE_DIR};
+use nrtm::{github, shim, CACHE_DIR, NVIM_DIR};
 
 /// A runtime manager for Neovim
 #[derive(clap::Parser)]
@@ -73,14 +73,14 @@ async fn main() -> anyhow::Result<()> {
                 &download_target,
             )
             .await?;
-            extract_archive(&download_target, &asset_type, &APP_DIR.join(version))?;
+            extract_archive(&download_target, &asset_type, &NVIM_DIR.join(version))?;
         }
         Commands::Use { version } => {
             let mut state = shim::State::read().unwrap_or_default();
             state.exe_path = if version == "system" {
                 shim::State::default().exe_path
             } else {
-                APP_DIR
+                NVIM_DIR
                     .join(format!("{version}/bin/nvim{EXE_SUFFIX}"))
                     .display()
                     .to_string()
