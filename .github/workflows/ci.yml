@@ -29,10 +29,17 @@ jobs:
       - name: Cache Rust toolchains
         uses: Swatinem/rust-cache@v2
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Setup Zig
+        if: matrix.os == 'ubuntu-latest'
+        uses: goto-bus-stop/setup-zig@2
         with:
-          python-version: '3.12'
+          version: 0.11.0
+
+      - name: Install cargo-zigbuild
+        if: matrix.os == 'ubuntu-latest'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
 
       - name: Build
         run: cargo xtask build --dist
