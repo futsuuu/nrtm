@@ -8,7 +8,7 @@ use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio::{fs::File, io::AsyncWriteExt};
 
-use nrtm::{github, shim, NVIM_DIR, CACHE_DIR};
+use nrtm::{github, shim, CACHE_DIR, NVIM_DIR};
 
 /// A runtime manager for Neovim
 #[derive(clap::Parser)]

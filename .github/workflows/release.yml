@@ -34,13 +34,20 @@ jobs:
       - name: Cache Rust files
         uses: Swatinem/rust-cache@v2
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Setup Zig
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        uses: goto-bus-stop/setup-zig@2
         with:
-          python-version: '3.12'
+          version: 0.11.0
+
+      - name: Install cargo-zigbuild
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
 
       - name: Create dist
-        run: python ./build.py --release --dist --target ${{ matrix.target }}
+        run: cargo xtask build --dist -- --release --target ${{ matrix.target }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
