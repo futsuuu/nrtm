@@ -3,7 +3,7 @@ use std::{
     ffi::OsStr,
     fs::{self, File},
     io::Write as _,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
@@ -107,7 +107,7 @@ fn build(
         return Ok(());
     }
 
-    let zip_path = root_dir.join(format!("out.zip"));
+    let zip_path = root_dir.join("out.zip");
     eprintln!("Create {}", zip_path.display());
     let file = File::create(zip_path)?;
     let mut zip = zip::ZipWriter::new(file);
@@ -118,6 +118,12 @@ fn build(
             continue;
         };
         eprintln!("Add {} to the zip file...", entry.path().display());
+        #[cfg(unix)]
+        let options = {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = entry.metadata()?.permissions().mode();
+            options.unix_permissions(mode)
+        };
         zip.start_file(entry.file_name().to_str().unwrap(), options)?;
         zip.write_all(&fs::read(entry.path())?)?;
     }
@@ -157,7 +163,7 @@ fn get_executables(command: &mut Command) -> anyhow::Result<Vec<PathBuf>> {
     Ok(r)
 }
 
-fn get_build_target(build_options: &Vec<String>) -> Option<String> {
+fn get_build_target(build_options: &[String]) -> Option<String> {
     let Some(i) = build_options.iter().position(|e| e.starts_with("--target")) else {
         return None;
     };
@@ -183,12 +189,12 @@ fn get_workspace_root() -> anyhow::Result<PathBuf> {
     Ok(root_manifest.parent().unwrap().to_path_buf())
 }
 
-fn change_file_stem(path: &PathBuf, from: &str, to: &str) -> PathBuf {
+fn change_file_stem(path: &Path, from: &str, to: &str) -> PathBuf {
     let name = path.file_stem().unwrap();
     if OsStr::new(from) != name {
-        return path.clone();
+        return path.to_path_buf();
     }
-    let mut new = path.clone();
+    let mut new = path.to_path_buf();
     new.set_file_name(to);
     if let Some(ext) = path.extension() {
         new.set_extension(ext);
