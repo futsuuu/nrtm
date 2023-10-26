@@ -4,7 +4,6 @@ on:
   pull_request:
     branches:
       - main
-      - '!release'
 
 env:
   RUST_BACKTRACE: 1
@@ -12,6 +11,7 @@ env:
 
 jobs:
   ci:
+    if: github.head_ref != 'release'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
