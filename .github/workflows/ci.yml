@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - '!release'
 
 env:
   RUST_BACKTRACE: 1
