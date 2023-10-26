@@ -10,6 +10,3 @@ path = "main.rs"
 [dependencies]
 clap.workspace = true
 zip.workspace = true
-
-[build-dependencies]
-zip.workspace = true
