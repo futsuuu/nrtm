@@ -7,8 +7,9 @@ use std::{
     process::{Command, Stdio},
 };
 
-use anyhow::Context;
+use anyhow::Context as _;
 use clap::Parser;
+use which::which_all_global;
 
 #[derive(Parser)]
 #[command(about)]
@@ -154,9 +155,28 @@ fn shell(shell: Option<String>, cargo_opts: Vec<String>) -> anyhow::Result<()> {
     }
     .context("Cannot find shell.")?;
 
+    let installed = which_all_global("nrtm")?.collect::<Vec<PathBuf>>();
+
     let bin_dir = build(false, cargo_opts)?.join("bin");
     let env_path = &env::var_os("PATH").context("Cannot get $PATH.")?;
-    let mut paths = env::split_paths(env_path).collect::<Vec<PathBuf>>();
+    let mut paths = env::split_paths(env_path)
+        .filter(|p| {
+            let Ok(entries) = p.read_dir() else {
+                return true;
+            };
+            for entry in entries {
+                let Ok(entry) = entry else {
+                    continue;
+                };
+                for bin_path in &installed {
+                    if &entry.path() == bin_path {
+                        return false;
+                    }
+                }
+            }
+            true
+        })
+        .collect::<Vec<PathBuf>>();
     paths.push(bin_dir);
 
     eprintln!("Start {shell}...");

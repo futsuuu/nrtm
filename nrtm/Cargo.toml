@@ -18,7 +18,7 @@ serde = { version = "1.0.189", features = ["derive"] }
 serde_json.workspace = true
 semver = { version = "1.0.20", features = ["serde"] }
 regex = "1.10.2"
-which = "5.0.0"
+which.workspace = true
 
 [target.'cfg(target_env = "musl")'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
