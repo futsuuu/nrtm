@@ -7,6 +7,7 @@ use std::{
     process::{Command, Stdio},
 };
 
+use anyhow::Context;
 use clap::Parser;
 
 #[derive(Parser)]
@@ -14,20 +15,22 @@ use clap::Parser;
 struct Args {
     #[command(subcommand)]
     command: Commands,
+    /// Passed to the `cargo` command when it is used
+    #[arg(global = true)]
+    cargo_options: Vec<String>,
 }
 
 #[derive(clap::Subcommand)]
 enum Commands {
     /// Wrapper of `cargo build`
     Build {
-        /// Default value is "build".
-        /// `cargo {command}`
-        #[arg(long, default_value = "build")]
-        command: String,
         /// Also build nrtm-installer
         #[arg(long)]
         dist: bool,
-        options: Vec<String>,
+    },
+    Shell {
+        /// Used when $SHELL is not set
+        shell: Option<String>,
     },
 }
 
@@ -37,11 +40,12 @@ fn main() -> anyhow::Result<()> {
     eprintln!("Start xtask...");
 
     match args.command {
-        Commands::Build {
-            command,
-            dist,
-            options,
-        } => build(command, dist, options)?,
+        Commands::Build { dist } => {
+            build(dist, args.cargo_options)?;
+        }
+        Commands::Shell { shell } => {
+            self::shell(shell, args.cargo_options)?;
+        }
     }
 
     eprintln!("Finish xtask.");
@@ -49,11 +53,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn build(
-    build_command: String,
-    dist: bool,
-    build_options: Vec<String>,
-) -> anyhow::Result<()> {
+fn build(dist: bool, cargo_opts: Vec<String>) -> anyhow::Result<PathBuf> {
     eprintln!("Check nrtm package...");
     exec(
         Command::new("cargo")
@@ -62,7 +62,7 @@ fn build(
         false,
     )?;
 
-    let build_target = get_build_target(&build_options).unwrap_or_default();
+    let build_target = get_build_target(&cargo_opts).unwrap_or_default();
     if !build_target.is_empty() {
         exec(
             Command::new("rustup").args(["target", "add", &build_target]),
@@ -71,16 +71,16 @@ fn build(
     }
 
     let build_command = if env::var("CI").is_ok() && build_target.contains("-musl") {
-        "zigbuild".into()
+        "zigbuild"
     } else {
-        build_command
+        "build"
     };
 
     eprintln!("Compile nrtm package...");
     let executables = get_executables(
         Command::new("cargo")
-            .arg(&build_command)
-            .args(&build_options)
+            .arg(build_command)
+            .args(&cargo_opts)
             .args(["--package", "nrtm"]),
     )?;
 
@@ -104,7 +104,7 @@ fn build(
     }
 
     if !dist {
-        return Ok(());
+        return Ok(out_dir);
     }
 
     let zip_path = root_dir.join("out.zip");
@@ -134,7 +134,7 @@ fn build(
     eprintln!("Compile nrtm-installer package...");
     let executables = get_executables(
         Command::new("cargo")
-            .arg(&build_command)
+            .arg(build_command)
             .args(["--package", "nrtm-installer"]),
     )?;
     let executable = executables.get(0).unwrap();
@@ -142,6 +142,29 @@ fn build(
     let copy_target = out_dir.join(format!("nrtm-installer{out_suffix}{EXE_SUFFIX}"));
     eprintln!("Copy {} to {}", executable.display(), copy_target.display());
     fs::copy(executable, copy_target)?;
+
+    Ok(out_dir)
+}
+
+fn shell(shell: Option<String>, cargo_opts: Vec<String>) -> anyhow::Result<()> {
+    let shell = if shell.is_some() {
+        shell
+    } else {
+        env::var("SHELL").ok()
+    }
+    .context("Cannot find shell.")?;
+
+    let bin_dir = build(false, cargo_opts)?.join("bin");
+    let env_path = &env::var_os("PATH").context("Cannot get $PATH.")?;
+    let mut paths = env::split_paths(env_path).collect::<Vec<PathBuf>>();
+    paths.push(bin_dir);
+
+    eprintln!("Start {shell}...");
+
+    let mut command = Command::new(shell);
+    command.env("PATH", env::join_paths(paths)?);
+
+    command.spawn()?.wait()?;
 
     Ok(())
 }
@@ -163,15 +186,15 @@ fn get_executables(command: &mut Command) -> anyhow::Result<Vec<PathBuf>> {
     Ok(r)
 }
 
-fn get_build_target(build_options: &[String]) -> Option<String> {
-    let Some(i) = build_options.iter().position(|e| e.starts_with("--target")) else {
+fn get_build_target(cargo_opts: &[String]) -> Option<String> {
+    let Some(i) = cargo_opts.iter().position(|e| e.starts_with("--target")) else {
         return None;
     };
 
-    if build_options.get(i).unwrap() == "--target" {
-        build_options.get(i + 1).map(String::from)
+    if cargo_opts.get(i).unwrap() == "--target" {
+        cargo_opts.get(i + 1).map(String::from)
     } else {
-        build_options
+        cargo_opts
             .get(i)
             .unwrap()
             .strip_prefix("--target=")
