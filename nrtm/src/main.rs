@@ -1,12 +1,16 @@
 use std::{
     env::consts::EXE_SUFFIX,
+    fs::{self, File},
+    io::{self, Write as _},
     path::{Path, PathBuf},
 };
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
 use clap::Parser as _;
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
-use tokio::{fs::File, io::AsyncWriteExt};
 
 use nrtm::{github, shim, CACHE_DIR, NVIM_DIR};
 
@@ -22,8 +26,14 @@ struct Args {
 enum Commands {
     /// Download a release
     Get { version: String },
+    /// Remove the specified version
+    Remove { version: String },
     /// Set version for use
     Use { version: String },
+    /// Print all installed versions
+    List,
+    /// Print the path to an executable that used by shim
+    Which,
     /// Manage NVIM_APPNAME
     App(AppArgs),
     /// Update cached response data
@@ -74,6 +84,12 @@ async fn main() -> anyhow::Result<()> {
             )
             .await?;
             extract_archive(&download_target, &asset_type, &NVIM_DIR.join(version))?;
+
+            eprintln!("Success to install Neovim {version}.");
+        }
+        Commands::Remove { version } => {
+            fs::remove_dir_all(NVIM_DIR.join(version))?;
+            eprintln!("Success to remove Neovim {version}.");
         }
         Commands::Use { version } => {
             let mut state = shim::State::read().unwrap_or_default();
@@ -87,6 +103,27 @@ async fn main() -> anyhow::Result<()> {
             };
             state.write()?;
         }
+        Commands::List => {
+            let current_used =
+                PathBuf::from(shim::State::read().unwrap_or_default().exe_path);
+            for entry in NVIM_DIR.read_dir()? {
+                let Ok(entry) = entry else {
+                    continue;
+                };
+                println!(
+                    "{: <2}{}",
+                    if current_used.starts_with(entry.path()) {
+                        "*"
+                    } else {
+                        ""
+                    },
+                    entry.file_name().to_str().unwrap()
+                );
+            }
+        }
+        Commands::Which => {
+            println!("{}", shim::State::read().unwrap_or_default().exe_path);
+        }
         Commands::App(args) => match &args.command {
             AppCommands::Use { name } => {
                 let mut state = shim::State::read().unwrap_or_default();
@@ -96,6 +133,7 @@ async fn main() -> anyhow::Result<()> {
         },
         Commands::Update => {
             github::cache_response().await?;
+            eprintln!("Success to update.");
         }
     }
 
@@ -115,13 +153,13 @@ async fn download_file(
         .template("[{elapsed_precise}] [{wide_bar:.cyan/blue.dim}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")?
         .progress_chars("━╸╌"));
 
-    let mut file = File::create(path).await?;
+    let mut file = File::create(path)?;
     let mut downloaded_size = 0;
     let mut stream = res.bytes_stream();
 
     while let Some(item) = stream.next().await {
         let chunk = item?;
-        file.write_all(&chunk).await?;
+        file.write_all(&chunk)?;
         downloaded_size += chunk.len();
         pb.set_position(downloaded_size as u64);
     }
@@ -134,7 +172,7 @@ fn extract_archive(
     archive_type: &github::AssetType,
     target: &PathBuf,
 ) -> anyhow::Result<()> {
-    std::fs::create_dir_all(target)?;
+    fs::create_dir_all(target)?;
 
     fn strip_toplevel(rel_path: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
         let rel_path = rel_path.as_ref();
@@ -143,7 +181,7 @@ fn extract_archive(
         Ok(path)
     }
 
-    let archive = std::fs::File::open(archive)?;
+    let archive = File::open(archive)?;
 
     match *archive_type {
         github::AssetType::Zip => {
@@ -155,21 +193,15 @@ fn extract_archive(
                 let path = target.join(rel_path);
 
                 if file.is_dir() {
-                    std::fs::create_dir_all(&path)?;
+                    fs::create_dir_all(&path)?;
                 } else {
-                    std::fs::create_dir_all(path.parent().unwrap())?;
-                    let mut outfile = std::fs::File::create(&path)?;
-                    std::io::copy(&mut file, &mut outfile)?;
+                    fs::create_dir_all(path.parent().unwrap())?;
+                    let mut outfile = File::create(&path)?;
+                    io::copy(&mut file, &mut outfile)?;
 
                     #[cfg(unix)]
-                    {
-                        use std::os::unix::fs::PermissionsExt;
-                        if let Some(mode) = file.unix_mode() {
-                            std::fs::set_permissions(
-                                &path,
-                                std::fs::Permissions::from_mode(mode),
-                            )?;
-                        }
+                    if let Some(mode) = file.unix_mode() {
+                        fs::set_permissions(&path, fs::Permissions::from_mode(mode))?;
                     }
                 }
             }
