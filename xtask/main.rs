@@ -55,14 +55,6 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn build(dist: bool, cargo_opts: Vec<String>) -> anyhow::Result<PathBuf> {
-    eprintln!("Check nrtm package...");
-    exec(
-        Command::new("cargo")
-            .arg("check")
-            .args(["--package", "nrtm"]),
-        false,
-    )?;
-
     let build_target = get_build_target(&cargo_opts).unwrap_or_default();
     if !build_target.is_empty() {
         exec(
@@ -170,6 +162,7 @@ fn shell(shell: Option<String>, cargo_opts: Vec<String>) -> anyhow::Result<()> {
                 };
                 for bin_path in &installed {
                     if &entry.path() == bin_path {
+                        eprintln!("Remove {} from $PATH", p.display());
                         return false;
                     }
                 }
@@ -177,7 +170,8 @@ fn shell(shell: Option<String>, cargo_opts: Vec<String>) -> anyhow::Result<()> {
             true
         })
         .collect::<Vec<PathBuf>>();
-    paths.push(bin_dir);
+    eprintln!("Add {} to $PATH", bin_dir.display());
+    paths.insert(0, bin_dir);
 
     eprintln!("Start {shell}...");
 
@@ -190,7 +184,10 @@ fn shell(shell: Option<String>, cargo_opts: Vec<String>) -> anyhow::Result<()> {
 }
 
 fn get_executables(command: &mut Command) -> anyhow::Result<Vec<PathBuf>> {
-    let output = exec(command.args(["--message-format", "json"]), true)?;
+    let output = exec(
+        command.args(["--message-format", "json-render-diagnostics"]),
+        true,
+    )?;
     let r = output
         .lines()
         .filter_map(|json| {
