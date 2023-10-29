@@ -170,6 +170,7 @@ fn shell(shell: Option<String>, cargo_opts: Vec<String>) -> anyhow::Result<()> {
                 };
                 for bin_path in &installed {
                     if &entry.path() == bin_path {
+                        eprintln!("Remove {} from $PATH", p.display());
                         return false;
                     }
                 }
@@ -177,7 +178,8 @@ fn shell(shell: Option<String>, cargo_opts: Vec<String>) -> anyhow::Result<()> {
             true
         })
         .collect::<Vec<PathBuf>>();
-    paths.push(bin_dir);
+    eprintln!("Add {} to $PATH", bin_dir.display());
+    paths.insert(0, bin_dir);
 
     eprintln!("Start {shell}...");
 
