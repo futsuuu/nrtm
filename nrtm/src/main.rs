@@ -24,6 +24,9 @@ struct Args {
 
 #[derive(clap::Subcommand)]
 enum Commands {
+    /// Restore Neovim version and NVIM_APPNAME
+    #[command(name = "-")]
+    Restore,
     /// Download a release
     Get { version: String },
     /// Remove the specified version
@@ -57,6 +60,9 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match &args.command {
+        Commands::Restore => {
+            shim::State::use_older_state()?;
+        }
         Commands::Get { version } => {
             let releases = github::get_releases().await?;
             let asset = releases
@@ -96,38 +102,51 @@ async fn main() -> anyhow::Result<()> {
             state.exe_path = if version == "system" {
                 shim::State::default().exe_path
             } else {
-                NVIM_DIR
-                    .join(format!("{version}/bin/nvim{EXE_SUFFIX}"))
-                    .display()
-                    .to_string()
+                Some(
+                    NVIM_DIR
+                        .join(format!("{version}/bin/nvim{EXE_SUFFIX}"))
+                        .display()
+                        .to_string(),
+                )
             };
             state.write()?;
         }
         Commands::List => {
-            let current_used =
-                PathBuf::from(shim::State::read().unwrap_or_default().exe_path);
+            let exe_path = shim::State::read()
+                .unwrap_or_default()
+                .exe_path
+                .map(PathBuf::from);
+
             for entry in NVIM_DIR.read_dir()? {
                 let Ok(entry) = entry else {
                     continue;
                 };
+                let current_used = if let Some(ref exe_path) = exe_path {
+                    exe_path.starts_with(entry.path())
+                } else {
+                    false
+                };
+
                 println!(
                     "{: <2}{}",
-                    if current_used.starts_with(entry.path()) {
-                        "*"
-                    } else {
-                        ""
-                    },
-                    entry.file_name().to_str().unwrap()
+                    if current_used { "*" } else { "" },
+                    entry.file_name().to_str().unwrap(),
                 );
             }
         }
         Commands::Which => {
-            println!("{}", shim::State::read().unwrap_or_default().exe_path);
+            println!(
+                "{}",
+                shim::State::read()
+                    .unwrap_or_default()
+                    .exe_path
+                    .unwrap_or_default()
+            );
         }
         Commands::App(args) => match &args.command {
             AppCommands::Use { name } => {
                 let mut state = shim::State::read().unwrap_or_default();
-                state.appname = name.to_string();
+                state.appname = Some(name.to_string());
                 state.write()?;
             }
         },

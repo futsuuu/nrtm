@@ -3,14 +3,25 @@ use std::{
     process::{exit, Command},
 };
 
-use nrtm::shim;
+use anyhow::Context as _;
+
+use nrtm::shim::State;
 
 fn main() -> anyhow::Result<()> {
-    let state = shim::State::read()?;
-    let mut command = Command::new(state.exe_path);
-    if !state.appname.is_empty() && env::var("NVIM_APPNAME").is_err() {
-        command.env("NVIM_APPNAME", state.appname);
+    let state = State::read()?;
+    State::draft_to_current()?;
+
+    let exe_path = state.exe_path.context("Neovim is not installed.")?;
+    let mut command = Command::new(exe_path);
+
+    let appname = match env::var("NVIM_APPNAME") {
+        Ok(appname) => Some(appname),
+        Err(_) => state.appname,
+    };
+    if let Some(appname) = appname {
+        command.env("NVIM_APPNAME", appname);
     }
+
     let exit_code = command.args(env::args_os().skip(1)).status()?.code();
 
     if let Some(code) = exit_code {

@@ -5,7 +5,6 @@ use which::which_all_global;
 
 use crate::{BIN_DIR, STATE_DIR};
 
-static STATE_FILE: Lazy<PathBuf> = Lazy::new(|| STATE_DIR.join("shim"));
 static SYSTEM_NVIM: Lazy<Option<PathBuf>> = Lazy::new(|| {
     let Ok(list) = which_all_global("nvim") else {
         return None;
@@ -24,42 +23,120 @@ static SYSTEM_NVIM: Lazy<Option<PathBuf>> = Lazy::new(|| {
     None
 });
 
+enum StateKind {
+    Draft,
+    Current,
+    Old,
+}
+
+impl PartialEq for StateKind {
+    fn eq(&self, rhs: &Self) -> bool {
+        self.read().ok() == rhs.read().ok()
+    }
+}
+
+impl StateKind {
+    fn path(&self) -> PathBuf {
+        use StateKind::*;
+        match *self {
+            Draft => STATE_DIR.join("draft.shim"),
+            Current => STATE_DIR.join("current.shim"),
+            Old => STATE_DIR.join("old.shim"),
+        }
+    }
+
+    fn read(&self) -> anyhow::Result<Option<String>> {
+        let path = self.path();
+        if !path.exists() {
+            return Ok(None);
+        }
+        let r = fs::read_to_string(path)?;
+        Ok(Some(r))
+    }
+
+    fn write(&self, content: String) -> anyhow::Result<()> {
+        fs::write(self.path(), content)?;
+        Ok(())
+    }
+
+    fn replace_with(&self, kind: Self) -> anyhow::Result<()> {
+        self.write(kind.read()?.unwrap_or_default())?;
+        Ok(())
+    }
+}
+
+#[derive(PartialEq)]
 pub struct State {
-    pub exe_path: String,
-    pub appname: String,
+    pub exe_path: Option<String>,
+    pub appname: Option<String>,
 }
 
 impl Default for State {
     fn default() -> Self {
         State {
-            exe_path: match &*SYSTEM_NVIM {
-                Some(path) => path.display().to_string(),
-                None => "".into(),
-            },
-            appname: "".into(),
+            exe_path: SYSTEM_NVIM.clone().map(|p| p.display().to_string()),
+            appname: None,
         }
     }
 }
 
 impl State {
     pub fn read() -> anyhow::Result<State> {
-        if STATE_FILE.exists() {
-            let content = fs::read_to_string(&*STATE_FILE)?;
-            let (exe_path, appname) = content.split_once('\n').unwrap();
+        let state = Self::_read(&StateKind::Draft)?;
+        Ok(state)
+    }
+
+    fn _read(kind: &StateKind) -> anyhow::Result<State> {
+        if let Some(content) = kind.read()? {
+            let Some((exe_path, appname)) = content.split_once('\n') else {
+                return Ok(Self::default());
+            };
             let state = State {
-                exe_path: exe_path.to_string(),
-                appname: appname.to_string(),
+                exe_path: Some(exe_path.to_string()),
+                appname: Some(appname.to_string()),
             };
             Ok(state)
         } else {
             let state = Self::default();
-            state.write()?;
+            state._write(kind)?;
             Ok(state)
         }
     }
 
     pub fn write(&self) -> anyhow::Result<()> {
-        fs::write(&*STATE_FILE, format!("{}\n{}", self.exe_path, self.appname))?;
+        self._write(&StateKind::Draft)?;
         Ok(())
+    }
+
+    fn _write(&self, kind: &StateKind) -> anyhow::Result<()> {
+        kind.write(format!(
+            "{}\n{}",
+            self.exe_path.clone().unwrap_or_default(),
+            self.appname.clone().unwrap_or_default(),
+        ))?;
+        Ok(())
+    }
+
+    pub fn use_older_state() -> anyhow::Result<()> {
+        use StateKind::*;
+        if Draft == Current {
+            // draft:   old
+            // current: old
+            // old:     current
+            Draft.replace_with(Old)?;
+            Old.replace_with(Current)?;
+            Current.replace_with(Draft)?;
+        } else {
+            // draft:   current
+            // current: current
+            // old:     draft
+            Old.replace_with(Draft)?;
+            Draft.replace_with(Current)?;
+        }
+        Ok(())
+    }
+
+    pub fn draft_to_current() -> anyhow::Result<()> {
+        StateKind::Current.replace_with(StateKind::Draft)
     }
 }
