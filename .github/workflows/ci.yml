@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "**.rs"
+      - "Cargo.lock"
 
 env:
   RUST_BACKTRACE: 1
