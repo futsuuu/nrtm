@@ -18,12 +18,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust files
+        uses: Swatinem/rust-cache@v2
+
       - name: Create out.zip
         run: cargo xtask build --dist
 
       - name: Format Rust code
         run: |
-          rustup component add rustfmt clippy
           cargo clippy --workspace --fix --allow-dirty
           cargo fmt
 
