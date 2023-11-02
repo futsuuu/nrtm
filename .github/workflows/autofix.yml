@@ -1,4 +1,4 @@
-name: Fix
+name: Auto Fix
 
 on:
   push:
@@ -18,10 +18,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Create out.zip
+        run: cargo xtask build --dist
+
       - name: Format Rust code
         run: |
           rustup component add rustfmt clippy
-          cargo clippy --package=* --fix --allow-dirty
+          cargo clippy --workspace --fix --allow-dirty
           cargo fmt
 
       - name: Auto Commit
