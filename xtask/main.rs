@@ -128,6 +128,7 @@ fn build(dist: bool, cargo_opts: Vec<String>) -> anyhow::Result<PathBuf> {
     let executables = get_executables(
         Command::new("cargo")
             .arg(build_command)
+            .args(&cargo_opts)
             .args(["--package", "nrtm-installer"]),
     )?;
     let executable = executables.get(0).unwrap();
